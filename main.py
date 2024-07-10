@@ -30,9 +30,10 @@ plt.show()
 
 import tensorflow as tf
 import pandas as pd
-from random import randint
+from random import randint #to choose the cell I would predict
 print(cell_data_x[0])
 
+#converting the raw data into a pandas dataframe
 my_columns = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"]
 x_data = []
 y_data = []
@@ -49,13 +50,16 @@ for i in range(48):
     dataset = pd.DataFrame(data=x_data,columns=my_columns)
     dataset["Label"] = y_data
 
+#to see correlations
 import seaborn as sns
 sns.heatmap(dataset.corr(), cmap = "crest")
 
+#to see data structure so I could decide best form of normalisation
 print(trainset.dtypes)
 for i in range(1, 17):
     trainset.hist(str(i))
 
+#normalisation and getting rid of useless features
 dataset = dataset.drop(columns = ["6","7","9","11","12","13"])
 def z_score(value):
     global mean
@@ -70,12 +74,12 @@ for i in dataset.columns:
         std = np.std(dataset[i])
         dataset[i] = dataset[i].apply(z_score)
 
+#split into train and test
 dataset = dataset.reindex(np.random.permutation(dataset.index))
 trainset = dataset.iloc[:40000]
 testset = dataset.iloc[40000:]
 
-#now try deep neural network
-#inputs for dnn
+#dnn because ffn was abysmal, there are input prepping
 input = {
     "1": tf.keras.layers.Input(shape=(1,), dtype=tf.float32),
     "2": tf.keras.layers.Input(shape=(1,), dtype=tf.float32),
@@ -90,12 +94,12 @@ input = {
     }
 normalized_inputs = {}
 for key, value in input.items():
-    temp = tf.keras.layers.Normalization(axis = None)
+    temp = tf.keras.layers.Normalization(axis = None) #I mean I already normalised but it works so...
     temp.adapt(trainset[key])
     temp = temp(input.get(key))
     normalized_inputs[key] = temp
 
-#making actuall dnn
+#making the model
 input_layer = tf.keras.layers.Concatenate()([value for key, value in normalized_inputs.items()])
 dense_output = tf.keras.layers.Dense(units=400, activation = 'relu', name = 'hidden_dense_layer_1')(input_layer)
 dense_output = tf.keras.layers.Dense(units=200, activation = 'relu', name = 'hidden_Dense_layer_2')(dense_output)
@@ -107,9 +111,9 @@ dnn_model.compile(
     loss = tf.keras.losses.mean_squared_error
 )
 
+#running and plotting mse and then evaluating
 xtrain, ytrain = trainset.drop(columns = ["Label"]), trainset["Label"]
 xtest, ytest = testset.drop(columns = ["Label"]), testset["Label"]
-#now run this as well
 xtrain = {name:np.array(value) for name, value in xtrain.items()}
 xtest = {name:np.array(value) for name, value in xtest.items()}
 history = dnn_model.fit(x=xtrain,y=ytrain, batch_size = 5000, epochs = 300, validation_split = 0.25)
@@ -127,6 +131,7 @@ plt.legend()
 plt.show()
 dnn_model.evaluate(x = xtest, y = ytest, return_dict = True)
 
+#time to predict the final cell
 x_data = []
 y_data = []
 x = np.load(os.path.join(DATA_PATH, f"{predic}_x.npy"))
@@ -151,8 +156,9 @@ for i in dataset.columns:
         std = np.std(dataset[i])
         dataset[i] = dataset[i].apply(z_score)
 y_pred = dnn_model.predict({name:np.array(value) for name, value in dataset.items()})
-y_pred = y_pred["dense_output"]
 
+#prediction comes as a weird 2d array dictionary so gotta convert that to 1d array
+y_pred = y_pred["dense_output"]
 alr = []
 for i in range(len(y_pred)):
     alr.append(y_pred[i][0])
@@ -161,6 +167,7 @@ for i in range(2,len(alr)-2):
     if abs(alr[i]-moving_median[2]) > 1.5:
         alr[i] = moving_median[2]
 
+#plot predictions against actual values
 cycles = np.arange(len(x_data)) + 1
 plt.figure()
 plt.xlabel("cycle")
