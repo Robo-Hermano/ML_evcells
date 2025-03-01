@@ -70,9 +70,6 @@ for i in dataset.columns:
         mean = np.mean(dataset[i])
         std = np.std(dataset[i])
         dataset[i] = dataset[i].apply(z_score)
-        mean = np.mean(dataset[i])
-        std = np.std(dataset[i])
-        dataset[i] = dataset[i].apply(z_score)
 
 #split into train and test
 dataset = dataset.reindex(np.random.permutation(dataset.index))
